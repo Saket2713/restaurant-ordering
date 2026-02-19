@@ -1,0 +1,40 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+      - REPOSITORY_URI_FRONTEND=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/restaurant-frontend
+      - REPOSITORY_URI_BACKEND=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/restaurant-backend
+      - REPOSITORY_URI_DATABASE=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/restaurant-database
+      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - IMAGE_TAG=${COMMIT_HASH:=latest}
+  build:
+    commands:
+      - echo Build started on `date`
+      - echo Building the Docker image for Database...
+      - docker build -t $REPOSITORY_URI_DATABASE:latest ./database
+      - docker tag $REPOSITORY_URI_DATABASE:latest $REPOSITORY_URI_DATABASE:$IMAGE_TAG
+      
+      - echo Building the Docker image for Backend...
+      - docker build -t $REPOSITORY_URI_BACKEND:latest ./backend
+      - docker tag $REPOSITORY_URI_BACKEND:latest $REPOSITORY_URI_BACKEND:$IMAGE_TAG
+
+      - echo Building the Docker image for Frontend...
+      - docker build -t $REPOSITORY_URI_FRONTEND:latest ./frontend
+      - docker tag $REPOSITORY_URI_FRONTEND:latest $REPOSITORY_URI_FRONTEND:$IMAGE_TAG
+  post_build:
+    commands:
+      - echo Build completed on `date`
+      - echo Pushing the Docker images...
+      - docker push $REPOSITORY_URI_DATABASE:latest
+      - docker push $REPOSITORY_URI_DATABASE:$IMAGE_TAG
+      - docker push $REPOSITORY_URI_BACKEND:latest
+      - docker push $REPOSITORY_URI_BACKEND:$IMAGE_TAG
+      - docker push $REPOSITORY_URI_FRONTEND:latest
+      - docker push $REPOSITORY_URI_FRONTEND:$IMAGE_TAG
+      - echo Writing image definitions file...
+      - printf '[{"name":"database","imageUri":"%s"},{"name":"backend","imageUri":"%s"},{"name":"frontend","imageUri":"%s"}]' $REPOSITORY_URI_DATABASE:$IMAGE_TAG $REPOSITORY_URI_BACKEND:$IMAGE_TAG $REPOSITORY_URI_FRONTEND:$IMAGE_TAG > imagedefinitions.json
+artifacts:
+    files: imagedefinitions.json
