@@ -1,4 +1,4 @@
-FROM mysql:8.0
+FROM public.ecr.aws/docker/library/mysql:8.0
 
 # Copy initialization script
 COPY qfood_init.sql /docker-entrypoint-initdb.d/
