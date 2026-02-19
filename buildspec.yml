@@ -4,6 +4,9 @@ phases:
   pre_build:
     commands:
       - echo Logging in to Amazon ECR...
+      - AWS_DEFAULT_REGION=${AWS_REGION}
+      - AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+      - echo "AWS Account ID: $AWS_ACCOUNT_ID"
       - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
       - REPOSITORY_URI_FRONTEND=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/restaurant-frontend
       - REPOSITORY_URI_BACKEND=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/restaurant-backend
@@ -16,7 +19,7 @@ phases:
       - echo Building the Docker image for Database...
       - docker build -t $REPOSITORY_URI_DATABASE:latest ./database
       - docker tag $REPOSITORY_URI_DATABASE:latest $REPOSITORY_URI_DATABASE:$IMAGE_TAG
-      
+
       - echo Building the Docker image for Backend...
       - docker build -t $REPOSITORY_URI_BACKEND:latest ./backend
       - docker tag $REPOSITORY_URI_BACKEND:latest $REPOSITORY_URI_BACKEND:$IMAGE_TAG
@@ -37,4 +40,4 @@ phases:
       - echo Writing image definitions file...
       - printf '[{"name":"database","imageUri":"%s"},{"name":"backend","imageUri":"%s"},{"name":"frontend","imageUri":"%s"}]' $REPOSITORY_URI_DATABASE:$IMAGE_TAG $REPOSITORY_URI_BACKEND:$IMAGE_TAG $REPOSITORY_URI_FRONTEND:$IMAGE_TAG > imagedefinitions.json
 artifacts:
-    files: imagedefinitions.json
+  files: imagedefinitions.json
